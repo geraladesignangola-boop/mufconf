@@ -1,0 +1,270 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800;900&display=swap');
+@import "tailwindcss";
+
+@font-face {
+  font-family: "SORA Luxury";
+  src: url("/fonts/SORA-luxury.otf") format("opentype");
+  font-display: swap;
+}
+
+@theme {
+  --font-serif: "SORA Luxury", "Cinzel", Georgia, serif;
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-caverna-body: "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-caverna-mono: "JetBrains Mono", monospace;
+  --font-moderna-display: "SORA Luxury", "Bricolage Grotesque", system-ui, sans-serif;
+}
+
+/* ==============================================================================
+   WEX — SISTEMA DE TEMAS (claro / escuro) do site público
+   Tudo o que é cor de superfície, texto ou linha do site público passa por
+   estas variáveis. O tema escuro é ativado pela classe `dark` em <html>,
+   definida pelo script anti-flash do index.html e pelo hook useTheme.
+   O painel admin força o tema escuro (ver AdminPanel) — nunca é afetado.
+   ============================================================================== */
+:root {
+  color-scheme: light;
+
+  /* Superfícies */
+  --wex-surface: #f7f7f5; /* fundo da página */
+  --wex-surface-2: #ecece8; /* faixas e chips subtilmente mais escuros */
+  --wex-surface-3: #fbf7f0; /* faixas creme (galeria / parcerias) */
+  --wex-card: #ffffff; /* cartões elevados sobre a página */
+
+  /* Texto sobre a página */
+  --wex-ink: #0b0b0a; /* texto principal */
+  --wex-muted: #575652; /* texto secundário */
+  --wex-muted-2: #6b6b66; /* texto terciário / placeholders */
+
+  /* Linhas e bordas sobre a página (usadas com /10 … /40) */
+  --wex-line: #0b0b0a;
+
+  /* Botão primário (inverte entre temas) */
+  --wex-cta-bg: #0b0b0a;
+  --wex-cta-fg: #f7f7f5;
+
+  /* Blocos escuros permanentes: footer, secção de logística, modais */
+  --wex-dark-block: #0b0b0a;
+  --wex-on-dark: #f7f7f5;
+
+  /* Acento aplicado a texto e ícones (laranja quebado) */
+  --wex-accent-ink: #a6521f;
+
+  /* Estados */
+  --wex-danger: #dc2626;
+  --wex-success: #15803d;
+
+  /* Scrollbar */
+  --wex-scrollbar: #d6d3cd;
+}
+
+html.dark {
+  color-scheme: dark;
+
+  --wex-surface: #0b0b0a;
+  --wex-surface-2: #171614;
+  --wex-surface-3: #141210;
+  --wex-card: #1a1918;
+
+  --wex-ink: #f7f7f5;
+  --wex-muted: #9a9892;
+  --wex-muted-2: #84827d;
+
+  --wex-line: #f7f7f5;
+
+  --wex-cta-bg: #f7f7f5;
+  --wex-cta-fg: #0b0b0a;
+
+  --wex-dark-block: #000000;
+  --wex-on-dark: #f7f7f5;
+
+  --wex-accent-ink: #e08a4a;
+
+  --wex-danger: #f87171;
+  --wex-success: #4ade80;
+
+  --wex-scrollbar: #2f2c29;
+}
+
+/* Transição suave ao trocar de tema (removida 400ms depois pela useTheme) */
+html.wex-theme-anim,
+html.wex-theme-anim *,
+html.wex-theme-anim *::before,
+html.wex-theme-anim *::after {
+  transition:
+    background-color 0.28s ease,
+    border-color 0.28s ease,
+    color 0.28s ease,
+    fill 0.28s ease,
+    stroke 0.28s ease !important;
+}
+
+@keyframes moderna-marquee {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+
+.moderna-marquee-track {
+  animation: moderna-marquee 28s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .moderna-marquee-track {
+    animation: none;
+  }
+}
+
+/* Ligadura tipográfica nas letras "LO" do subtítulo do hero (ModernaHero):
+   ativa as ligaduras da fonte e aproxima o L do O para que se juntem */
+.ligadura-lo {
+  font-feature-settings: "liga" 1, "clig" 1, "dlig" 1, "hlig" 1;
+  font-variant-ligatures: common-ligatures discretionary-ligatures historical-ligatures;
+  letter-spacing: -0.12em;
+  margin-right: 0.12em; /* compensa o espaço retirado depois do "O" */
+}
+
+html {
+  scroll-behavior: smooth;
+  background-color: var(--wex-surface); /* acompanha o tema claro/escuro */
+  color: var(--wex-ink);
+}
+
+/* Custom premium ambient scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--wex-surface);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--wex-scrollbar);
+  border: 2px solid var(--wex-surface);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #d97706; /* amber-600 */
+}
+
+/* ==============================================================================
+   REVEAL ON SCROLL — entradas suaves (fade + translateY)
+   Apenas transform/opacity são animados. Respeita prefers-reduced-motion.
+   ============================================================================== */
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 0.55s ease,
+    transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: var(--reveal-delay, 0ms);
+  will-change: opacity, transform;
+}
+
+.reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+    will-change: auto;
+  }
+}
+
+/* Foco visível para navegação por teclado (WCAG 2.4.7) */
+:focus-visible {
+  outline: 2px solid #b95e26;
+  outline-offset: 2px;
+}
+
+/* Elementos com focus:outline-none próprio mantêm o anel via :focus-visible
+   apenas quando o navegador deteta navegação por teclado. */
+
+/* Elegant selection colors */
+::selection {
+  background-color: rgba(234, 88, 12, 0.3); /* orange-600 with opacity */
+  color: var(--wex-ink);
+}
+
+@keyframes parceiros-scroll {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-50%, 0, 0); }
+}
+
+.parceiros-marquee {
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 7%, #000 93%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 7%, #000 93%, transparent 100%);
+}
+
+.parceiros-track {
+  animation: parceiros-scroll 34s linear infinite;
+  will-change: transform;
+}
+
+.parceiros-marquee:hover .parceiros-track {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .parceiros-track {
+    animation: none;
+  }
+}
+
+/* ==============================================================================
+   ADMIN WEX — estilos exclusivos do painel administrativo
+   Tudo abaixo é aplicado apenas às classes usadas em src/components/admin
+   e src/pages/AdminPanel.tsx, pelo que não afeta o site público.
+   ============================================================================== */
+
+/* Scrollbar dedicada ao painel admin (substitui a global onde é usada) */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #334155 transparent; /* slate-700 */
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #334155; /* slate-700 */
+  border-radius: 9999px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #22d3ee; /* cyan-400 */
+}
+
+/* Animação suave de entrada para listas do painel */
+@keyframes admin-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.admin-fade-in {
+  animation: admin-fade-in 0.25s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-fade-in {
+    animation: none;
+  }
+}
+

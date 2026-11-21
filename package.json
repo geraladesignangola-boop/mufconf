@@ -1,0 +1,36 @@
+{
+  "name": "wex-mulheres-de-fogo",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "vite --port=3000 --host=0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview",
+    "clean": "rm -rf dist server.js",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.110.0",
+    "exceljs": "^4.4.0",
+    "html-to-image": "^1.11.13",
+    "jspdf": "^4.2.1",
+    "lucide-react": "^0.546.0",
+    "motion": "^12.23.24",
+    "qrcode.react": "^4.2.0",
+    "react": "^19.0.1",
+    "react-dom": "^19.0.1",
+    "react-router-dom": "^7.18.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.14",
+    "@types/node": "^22.14.0",
+    "@vitejs/plugin-react": "^5.0.4",
+    "tailwindcss": "^4.1.14",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.3"
+  }
+}

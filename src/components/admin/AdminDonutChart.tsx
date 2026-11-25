@@ -69,6 +69,9 @@ export default function AdminDonutChart({ stats }: AdminDonutChartProps) {
         </svg>
 
         <div className="flex-1 space-y-2.5 w-full">
+          {total === 0 && (
+            <p className="mb-3 text-[11px] text-slate-600">Nenhum clique registado ainda.</p>
+          )}
           {channels.map((ch) => (
             <div key={ch.name} className="flex items-center gap-2 text-[13px]">
               <div

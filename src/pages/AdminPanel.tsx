@@ -42,6 +42,7 @@ import ConteudoAdminPage from '../components/admin/ConteudoAdminPage'
 import BlocosSitePage from '../components/admin/BlocosSitePage'
 import MateriaisAtalhosPage from '../components/admin/MateriaisAtalhosPage'
 import RelatoriosPage from '../components/admin/RelatoriosPage'
+import RelatosPage from '../components/admin/RelatosPage'
 import UtilizadoresAdminPage from '../components/admin/UtilizadoresAdminPage'
 import DadosSensiveisPage from '../components/admin/DadosSensiveisPage'
 import BaseDeDadosPage from '../components/admin/BaseDeDadosPage'
@@ -371,16 +372,36 @@ export default function AdminPanel() {
   }
 
   const loadFallbackStats = async (): Promise<DashboardStats> => {
-    const [{ count: totalInscritos }, { count: totalReferrals }, { count: prizesAchieved }, { count: prizesPending }] = await Promise.all([
-      supabase.from('inscricoes').select('*', { count: 'exact', head: true }),
+    const [
+      { count: totalInscritos },
+      { count: totalReferrals },
+      { count: totalLinks },
+      { data: linkCounters },
+      { count: prizesAchieved },
+      { count: prizesPending },
+    ] = await Promise.all([
+      supabase.from('inscricoes').select('*', { count: 'exact', head: true }).neq('estado', 'cancelada'),
       supabase.from('referrals').select('*', { count: 'exact', head: true }),
+      supabase.from('referral_links').select('*', { count: 'exact', head: true }),
+      supabase.from('referral_links').select('total_clicks, facebook_clicks, instagram_clicks, whatsapp_clicks, direct_clicks'),
       supabase.from('prize_claims').select('*', { count: 'exact', head: true }).neq('status', 'delivered'),
       supabase.from('prize_claims').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
     ])
 
+    const soma = (campo: string): number =>
+      (linkCounters || []).reduce((acc, row) => acc + (Number((row as any)[campo]) || 0), 0)
+
+    const facebook = soma('facebook_clicks')
+    const instagram = soma('instagram_clicks')
+    const whatsapp = soma('whatsapp_clicks')
+    const direct = soma('direct_clicks')
+    const somaCanais = facebook + instagram + whatsapp + direct
+    const totalClicks = Math.max(soma('total_clicks'), somaCanais)
+
     const { data: topReferrer } = await supabase
       .from('inscricoes')
       .select('nome, convidadas_count')
+      .neq('estado', 'cancelada')
       .order('convidadas_count', { ascending: false })
       .order('created_at', { ascending: true })
       .limit(1)
@@ -391,12 +412,12 @@ export default function AdminPanel() {
       total_referrals: totalReferrals || 0,
       total_prizes_achieved: prizesAchieved || 0,
       prizes_pending_delivery: prizesPending || 0,
-      total_links: 0,
-      total_clicks: 0,
-      facebook_clicks: 0,
-      instagram_clicks: 0,
-      whatsapp_clicks: 0,
-      direct_clicks: 0,
+      total_links: totalLinks || 0,
+      total_clicks: totalClicks,
+      facebook_clicks: facebook,
+      instagram_clicks: instagram,
+      whatsapp_clicks: whatsapp,
+      direct_clicks: direct + (totalClicks - somaCanais),
       top_referrer_nome: topReferrer?.nome || '',
       top_referrer_count: topReferrer?.convidadas_count || 0,
     }
@@ -432,8 +453,11 @@ export default function AdminPanel() {
       setDataError('')
 
       const { data: statsData, error: statsError } = await supabase.rpc('get_dashboard_stats')
-      if (statsData?.[0]) {
-        setStats(statsData[0] as DashboardStats)
+      // `get_dashboard_stats` devolve JSONB (objecto). Versões antigas devolviam
+      // uma linha em array — por isso aceitamos as duas formas.
+      const statsRow = Array.isArray(statsData) ? statsData[0] : statsData
+      if (statsRow) {
+        setStats(statsRow as DashboardStats)
       } else if (statsError) {
         setStats(await loadFallbackStats())
       }
@@ -634,7 +658,7 @@ export default function AdminPanel() {
       const { error } = await supabase.rpc('admin_send_referral_link', {
         p_participant_id: selectedParticipantId,
         p_referral_link_id: latestLink?.id || null,
-        p_link_url: getReferralLink(referralLink),
+        p_link_url: getReferralLink(referralLink, 'whatsapp'),
       })
       if (error) throw error
       await fetchData()
@@ -698,7 +722,7 @@ export default function AdminPanel() {
       const { error: sendError } = await supabase.rpc('admin_send_referral_link', {
         p_participant_id: selectedParticipantId,
         p_referral_link_id: newLink.id,
-        p_link_url: getReferralLink(newLink.token),
+        p_link_url: getReferralLink(newLink.token, 'whatsapp'),
       })
       if (sendError) throw new Error(sendError.message)
       await fetchData()
@@ -1053,6 +1077,8 @@ export default function AdminPanel() {
           {activeTab === 'notifications' && (
             <NotificationsSection notifications={notifications} onMarkAsSent={markAsSent} />
           )}
+
+          {activeTab === 'relatos' && <RelatosPage />}
 
           {activeTab === 'relatorios' && (
             <RelatoriosPage stats={stats} participants={participants} onExportExcel={handleExportCSV} />

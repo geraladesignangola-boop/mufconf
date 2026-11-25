@@ -339,3 +339,58 @@ export interface CartazConfig {
   ativo: boolean
   atualizado_em: string
 }
+
+// ============================================
+// Controlo de capacidade (módulo Ingressos e Vagas)
+// ============================================
+
+/** Contagens reais por estado — RPC `get_capacidade_stats`. */
+export interface CapacidadeStats {
+  capacidade: number
+  confirmadas: number
+  lista_espera: number
+  canceladas: number
+  presentes: number
+  livres: number
+  ocupacao: number
+}
+
+// ============================================
+// Relatos de problemas / comentários (site → painel)
+// ============================================
+
+export type RelatoTipo = 'problema' | 'comentario'
+export type RelatoEstado = 'novo' | 'em_curso' | 'resolvido'
+
+export interface Relato {
+  id: string
+  tipo: RelatoTipo
+  nome: string
+  contacto: string | null
+  mensagem: string
+  estado: RelatoEstado
+  admin_notes: string | null
+  inscrito_id: string | null
+  inscrito_nome?: string | null
+  resolvido_em: string | null
+  criado_em: string
+  atualizado_em: string
+}
+
+// ============================================
+// Pesquisa pública de bilhete
+// ============================================
+
+/** Dados devolvidos por `get_public_bilhete` após confirmar o telefone. */
+export interface BilhetePublico {
+  nome: string
+  telefone: string
+  email: string | null
+  igreja: string | null
+  municipio: string | null
+  faixa_etaria: string | null
+  codigo: string | null
+  referral_code: string | null
+  estado: string
+  criado_em: string
+}

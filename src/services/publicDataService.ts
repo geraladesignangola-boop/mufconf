@@ -1,6 +1,6 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { resolveImageUrl } from './imageUrlService';
-import type { OradoraAdmin, ItemProgramacao, ItemGaleria, CartazConfig, MaterialAtalho, SecaoItem } from '../types/database';
+import type { OradoraAdmin, ItemProgramacao, ItemGaleria, CartazConfig, MaterialAtalho, SecaoItem, BilhetePublico, RelatoTipo } from '../types/database';
 
 // ==============================================================================
 // SERVIÇOS DE BUSCA E INTEGRAÇÃO DO SITE PÚBLICO
@@ -429,5 +429,89 @@ export async function fetchPublicMateriaisAtalhos(): Promise<MaterialAtalho[]> {
   } catch (err) {
     console.warn('[PublicDataService] Erro ao carregar materiais e atalhos:', err);
     throw err;
+  }
+}
+
+// =============================================================================
+// RELATOS DE PROBLEMAS / COMENTÁRIOS (escrita pública via RPC)
+// =============================================================================
+
+export interface SubmitRelatoInput {
+  tipo: RelatoTipo;
+  nome: string;
+  contacto?: string;
+  mensagem: string;
+}
+
+/**
+ * Envia um relato de problema ou comentário para a equipa organizadora.
+ * O site público não tem acesso direto à tabela `relatos` (RLS) — apenas
+ * esta RPC SECURITY DEFINER valida e grava.
+ */
+export async function submitPublicRelato(
+  input: SubmitRelatoInput
+): Promise<{ success: boolean; error?: string }> {
+  if (!isSupabaseConfigured) {
+    return { success: false, error: 'Serviço indisponível. Tenta novamente mais tarde.' };
+  }
+
+  try {
+    const { data, error } = await supabase.rpc('create_public_relato', {
+      p_tipo: input.tipo,
+      p_nome: input.nome.trim(),
+      p_contacto: input.contacto?.trim() || null,
+      p_mensagem: input.mensagem.trim(),
+    });
+
+    if (error) throw error;
+    if (data && data.success === false) {
+      return { success: false, error: 'Não foi possível enviar o relato. Tenta novamente.' };
+    }
+    return { success: true };
+  } catch (err: any) {
+    const msg = err?.message || '';
+    if (msg.includes('relato_frequente')) {
+      return {
+        success: false,
+        error: 'Já enviámos vários relatos deste contacto há pouco tempo. Tenta novamente mais tarde.',
+      };
+    }
+    if (msg.includes('relato_invalido')) {
+      return { success: false, error: 'Verifica os campos: nome e mensagem são obrigatórios.' };
+    }
+    console.error('[PublicDataService] Erro ao enviar relato:', err);
+    return { success: false, error: 'Não foi possível enviar o relato. Tenta novamente.' };
+  }
+}
+
+// =============================================================================
+// PESQUISA PÚBLICA DE BILHETE (2 factores: termo + telefone registado)
+// =============================================================================
+
+/**
+ * Procura a inscrição da pessoa e devolve os dados para reproduzir o bilhete.
+ *
+ * Protecção de dados: a RPC exige o termo de pesquisa (nome, e-mail ou código)
+ * E o telefone registado. Sem telefone não devolve nada — ninguém consulta
+ * dados de terceiros. A mensagem de erro é idêntica quando não existe
+ * inscrição e quando o telefone não confere (não revela quem está registado).
+ */
+export async function fetchPublicBilhete(
+  termo: string,
+  telefone: string
+): Promise<BilhetePublico | null> {
+  if (!isSupabaseConfigured) return null;
+
+  try {
+    const { data, error } = await supabase.rpc('get_public_bilhete', {
+      p_termo: termo.trim(),
+      p_telefone: telefone.trim(),
+    });
+
+    if (error) throw error;
+    return (data as BilhetePublico | null) ?? null;
+  } catch (err) {
+    console.warn('[PublicDataService] Erro na pesquisa de bilhete:', err);
+    throw new Error('Não foi possível pesquisar agora. Verifica a tua ligação e tenta novamente.');
   }
 }

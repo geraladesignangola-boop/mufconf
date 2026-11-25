@@ -10,15 +10,15 @@ import {
   Loader2,
   X,
 } from 'lucide-react'
-import { DashboardStats } from '../../types/database'
+import { DashboardStats, CapacidadeStats } from '../../types/database'
 import {
   AdminLote,
   FilaEsperaEntry,
   fetchAdminLotes,
-  fetchVagasTotais,
   saveVagasTotais,
   fetchFilaEspera,
   promoverFilaEspera,
+  fetchCapacidadeStats,
 } from '../../services/adminContentService'
 import { PageHeader, Card, StatCard, Badge, Button, EmptyState, fieldClasses, labelClasses } from './ui'
 
@@ -27,7 +27,7 @@ interface IngressosVagasProps {
 }
 
 export default function IngressosVagasPage({ stats }: IngressosVagasProps) {
-  const [capacidadeTotal, setCapacidadeTotal] = useState(0)
+  const [capacidade, setCapacidade] = useState<CapacidadeStats | null>(null)
   const [isEditingCapacidade, setIsEditingCapacidade] = useState(false)
   const [novaCapacidade, setNovaCapacidade] = useState('0')
   const [savingCapacidade, setSavingCapacidade] = useState(false)
@@ -37,29 +37,32 @@ export default function IngressosVagasPage({ stats }: IngressosVagasProps) {
   const [loading, setLoading] = useState(true)
   const [erro, setErro] = useState('')
 
-  const totalInscritos = stats?.total_inscritos || 0
-  const vagasRestantes = Math.max(0, capacidadeTotal - totalInscritos)
-  const taxaOcupacao =
-    capacidadeTotal > 0
-      ? Math.min(100, Math.round((totalInscritos / capacidadeTotal) * 100))
-      : 0
+  // Fonte única: RPC `get_capacidade_stats` — mesmo critério de "ocupa vaga"
+  // usado na inscrição pública (exclui canceladas e lista de espera).
+  const capacidadeTotal = capacidade?.capacidade ?? 0
+  const totalInscritos = capacidade?.confirmadas ?? 0
+  const vagasRestantes = capacidade?.livres ?? 0
+  const taxaOcupacao = capacidade?.ocupacao ?? 0
+  const listaEsperaCount = capacidade?.lista_espera ?? 0
+  const canceladasCount = capacidade?.canceladas ?? 0
 
   const carregar = async () => {
     setLoading(true)
     setErro('')
     try {
-      const [lotesData, vagas, esperaData] = await Promise.all([
+      const [lotesData, capacidadeData, esperaData] = await Promise.all([
         fetchAdminLotes(),
-        fetchVagasTotais(),
+        fetchCapacidadeStats(),
         fetchFilaEspera(),
       ])
       setLotes(lotesData)
-      if (vagas !== null) setCapacidadeTotal(vagas)
+      setCapacidade(capacidadeData)
       setFilaEspera(esperaData)
     } catch (err) {
       setErro((err as Error).message)
       setLotes([])
       setFilaEspera([])
+      setCapacidade(null)
     } finally {
       setLoading(false)
     }
@@ -80,8 +83,9 @@ export default function IngressosVagasPage({ stats }: IngressosVagasProps) {
     setErro('')
     try {
       await saveVagasTotais(val)
-      setCapacidadeTotal(val)
       setIsEditingCapacidade(false)
+      // Recarrega tudo: a capacidade muda a ocupação, as vagas livres e o alerta.
+      await carregar()
     } catch (err) {
       setErro((err as Error).message)
     } finally {
@@ -97,6 +101,13 @@ export default function IngressosVagasPage({ stats }: IngressosVagasProps) {
     try {
       await promoverFilaEspera(id)
       setFilaEspera((prev) => prev.filter((item) => item.id !== id))
+      // A promoção ocupa uma vaga — as contagens têm de ser atualizadas.
+      const [capacidadeData, esperaData] = await Promise.all([
+        fetchCapacidadeStats(),
+        fetchFilaEspera(),
+      ])
+      setCapacidade(capacidadeData)
+      setFilaEspera(esperaData)
       alert(`${nome} promovida com sucesso!`)
     } catch (err) {
       setErro((err as Error).message)
@@ -154,9 +165,9 @@ export default function IngressosVagasPage({ stats }: IngressosVagasProps) {
           icon={<Users className="w-4 h-4" />}
         />
         <StatCard
-          label="Inscrições Emitidas"
+          label="Inscrições Confirmadas"
           value={totalInscritos}
-          note="Confirmadas no sistema"
+          note="Ocupam vaga (sem canceladas)"
           tone="accent"
           icon={<CheckCircle className="w-4 h-4" />}
         />
@@ -174,6 +185,21 @@ export default function IngressosVagasPage({ stats }: IngressosVagasProps) {
           icon={<Percent className="w-4 h-4" />}
         />
       </div>
+
+      {/* Contagens por estado — leitura rápida do que não ocupa vaga */}
+      {capacidade && (
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 rounded-2xl border border-slate-800 bg-slate-900 text-[12px] text-slate-400">
+          <span>
+            <span className="font-bold text-slate-200 tabular-nums">{listaEsperaCount}</span> em lista de espera
+          </span>
+          <span>
+            <span className="font-bold text-slate-200 tabular-nums">{canceladasCount}</span> canceladas
+          </span>
+          <span>
+            <span className="font-bold text-slate-200 tabular-nums">{capacidade.presentes}</span> já fizeram check-in
+          </span>
+        </div>
+      )}
 
       {/* Alerta de Lotação */}
       {taxaOcupacao >= 90 && (

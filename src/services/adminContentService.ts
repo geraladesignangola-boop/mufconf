@@ -1,5 +1,12 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import type { ItemGaleria, CartazConfig, UsuarioAdmin, MaterialAtalho } from '../types/database';
+import type {
+  ItemGaleria,
+  CartazConfig,
+  UsuarioAdmin,
+  MaterialAtalho,
+  CapacidadeStats,
+  Relato,
+} from '../types/database';
 
 // ==============================================================================
 // Serviço de conteúdo administrativo — 100% Supabase (sem fallbacks locais).
@@ -246,14 +253,15 @@ export async function fetchAdminLotes(): Promise<AdminLote[]> {
 
   const [lotesRes, inscricoesRes] = await Promise.all([
     supabase.from('lotes_ingressos').select('*').order('criado_em', { ascending: true }),
-    supabase.from('inscricoes').select('lote_id').not('lote_id', 'is', null),
+    // Emitidos = inscricões que ocupam lugar no lote (canceladas não contam).
+    supabase.from('inscricoes').select('lote_id, estado').not('lote_id', 'is', null),
   ]);
 
   if (lotesRes.error) fail(lotesRes.error, 'Não foi possível carregar os lotes');
 
   const emitidosPorLote = new Map<string, number>();
   for (const row of inscricoesRes.data || []) {
-    if (!row.lote_id) continue;
+    if (!row.lote_id || row.estado === 'cancelada') continue;
     emitidosPorLote.set(row.lote_id, (emitidosPorLote.get(row.lote_id) || 0) + 1);
   }
 
@@ -323,6 +331,123 @@ export async function promoverFilaEspera(id: string): Promise<void> {
     .update({ estado: 'inscrita', updated_at: new Date().toISOString() })
     .eq('id', id);
   if (error) fail(error, 'Não foi possível promover a participante');
+}
+
+/**
+ * Capacidade real do evento — RPC `get_capacidade_stats` (confirmadas,
+ * lista de espera, canceladas, presentes, vagas livres e ocupação).
+ * Usa exactamente o mesmo critério de "ocupa vaga" da inscrição pública.
+ *
+ * Se a migração 033 ainda não estiver aplicada (RPC inexistente), calcula as
+ * mesmas contagens no cliente para o módulo não ficar inutilizável.
+ */
+export async function fetchCapacidadeStats(): Promise<CapacidadeStats> {
+  assertConfigured();
+
+  const num = (valor: unknown): number => {
+    const n = Number(valor);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  const montar = (row: Record<string, unknown>): CapacidadeStats => ({
+    capacidade: num(row.capacidade),
+    confirmadas: num(row.confirmadas),
+    lista_espera: num(row.lista_espera),
+    canceladas: num(row.canceladas),
+    presentes: num(row.presentes),
+    livres: num(row.livres),
+    ocupacao: num(row.ocupacao),
+  });
+
+  const { data, error } = await supabase.rpc('get_capacidade_stats');
+
+  if (!error && data) {
+    const row = (Array.isArray(data) ? data[0] : data) as Record<string, unknown>;
+    return montar(row || {});
+  }
+
+  // --- Fallback (migração por aplicar): mesma contagem, feita no cliente ---
+  const [vagasRes, confirmadasRes, esperaRes, canceladasRes, presentesRes] = await Promise.all([
+    supabase.from('app_settings').select('value').eq('key', 'vagas_totais').maybeSingle(),
+    supabase.from('inscricoes').select('id', { count: 'exact', head: true })
+      .neq('estado', 'cancelada').neq('estado', 'lista_espera'),
+    supabase.from('inscricoes').select('id', { count: 'exact', head: true }).eq('estado', 'lista_espera'),
+    supabase.from('inscricoes').select('id', { count: 'exact', head: true }).eq('estado', 'cancelada'),
+    supabase.from('inscricoes').select('id', { count: 'exact', head: true })
+      .eq('checked_in', true).neq('estado', 'cancelada'),
+  ]);
+
+  const falha = vagasRes.error || confirmadasRes.error || esperaRes.error || canceladasRes.error || presentesRes.error;
+  if (falha) fail(falha, 'Não foi possível carregar a capacidade do evento');
+
+  const capacitada = vagasRes.data ? parseInt(vagasRes.data.value, 10) : NaN;
+  const capacidade = Number.isFinite(capacitada) ? capacitada : 350;
+  const confirmadas = confirmadasRes.count || 0;
+
+  return {
+    capacidade,
+    confirmadas,
+    lista_espera: esperaRes.count || 0,
+    canceladas: canceladasRes.count || 0,
+    presentes: presentesRes.count || 0,
+    livres: Math.max(capacidade - confirmadas, 0),
+    ocupacao:
+      capacidade > 0 ? Math.min(100, Math.round((confirmadas / capacidade) * 100)) : 0,
+  };
+}
+
+// ==============================================================================
+// 4b. RELATOS DE PROBLEMAS / COMENTÁRIOS (tabela: relatos)
+// ==============================================================================
+const ESTADOS_RELATO: Relato['estado'][] = ['novo', 'em_curso', 'resolvido'];
+
+export async function fetchAdminRelatos(): Promise<Relato[]> {
+  assertConfigured();
+  const { data, error } = await supabase
+    .from('relatos')
+    .select('*, participante:inscricoes(nome)')
+    .order('criado_em', { ascending: false });
+
+  if (error) fail(error, 'Não foi possível carregar os relatos');
+
+  return (data || []).map((row) => {
+    const participante = row.participante as { nome?: string } | { nome?: string }[] | null;
+    const nomeParticipante = Array.isArray(participante)
+      ? participante[0]?.nome
+      : participante?.nome;
+
+    return {
+      id: row.id,
+      tipo: row.tipo === 'comentario' ? 'comentario' : 'problema',
+      nome: row.nome || '',
+      contacto: row.contacto || null,
+      mensagem: row.mensagem || '',
+      estado: (ESTADOS_RELATO.includes(row.estado) ? row.estado : 'novo') as Relato['estado'],
+      admin_notes: row.admin_notes || null,
+      inscrito_id: row.inscrito_id || null,
+      inscrito_nome: nomeParticipante || null,
+      resolvido_em: row.resolvido_em || null,
+      criado_em: row.criado_em,
+      atualizado_em: row.atualizado_em || row.criado_em,
+    } satisfies Relato;
+  });
+}
+
+export async function updateAdminRelato(
+  id: string,
+  patch: { estado?: Relato['estado']; admin_notes?: string }
+): Promise<void> {
+  assertConfigured();
+
+  const payload: Record<string, unknown> = { atualizado_em: new Date().toISOString() };
+  if (patch.estado !== undefined) {
+    payload.estado = patch.estado;
+    payload.resolvido_em = patch.estado === 'resolvido' ? new Date().toISOString() : null;
+  }
+  if (patch.admin_notes !== undefined) payload.admin_notes = patch.admin_notes;
+
+  const { error } = await supabase.from('relatos').update(payload).eq('id', id);
+  if (error) fail(error, 'Não foi possível atualizar o relato');
 }
 
 // ==============================================================================

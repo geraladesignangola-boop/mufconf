@@ -26,6 +26,7 @@ import {
   ListTree,
   Zap,
   Paperclip,
+  MessageSquareWarning,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'motion/react'
 
@@ -46,6 +47,7 @@ export type AdminTab =
   | 'listas'
   | 'materiais'
   | 'notifications'
+  | 'relatos'
   | 'relatorios'
   | 'settings'
   | 'utilizadores'
@@ -96,6 +98,7 @@ const NAV_ITEMS: NavItem[] = [
 
   // Grupo 3: Comunicação & Relatórios
   { id: 'notifications', label: 'Notificações', icon: Bell, group: 'Comunicação & Relatórios' },
+  { id: 'relatos', label: 'Relatos', icon: MessageSquareWarning },
   { id: 'relatorios', label: 'Relatórios', icon: BarChart3 },
 
   // Grupo 4: Sistema & Controlo

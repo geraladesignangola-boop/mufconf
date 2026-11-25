@@ -360,9 +360,6 @@ export default function ModernaLogisticaInscricao({
                           : 'Lista de Espera'}
                       </h3>
                     </div>
-                    <span className="font-[family-name:var(--font-caverna-mono)] text-xs text-[#8D8B84] tabular-nums">
-                      {vagasTotais > 0 ? `${vagasTotais} vagas · ` : ''}{precoLabel}
-                    </span>
                   </div>
 
                   {referredByCode && (

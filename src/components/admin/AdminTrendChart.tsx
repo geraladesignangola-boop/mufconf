@@ -24,18 +24,16 @@ export default function AdminTrendChart({ data, totalToday }: AdminTrendChartPro
   const polygon = `${polyline} ${width},${height} 0,${height}`
 
   const weekTotal = data.reduce((sum, d) => sum + d.count, 0)
-  const lastCount = data.length > 0 ? data[data.length - 1].count : 0
-
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 md:p-5">
       <div className="flex items-baseline justify-between mb-3">
         <div>
-          <p className="text-xl md:text-2xl font-black text-cyan-400">{lastCount}</p>
-          <p className="text-[11px] text-slate-500">Total acumulado</p>
+          <p className="text-xl md:text-2xl font-black text-cyan-400">{totalToday}</p>
+          <p className="text-[11px] text-slate-500">Inscrições hoje</p>
         </div>
         {hasData && (
           <p className="text-[11px] text-emerald-500 font-semibold text-right">
-            +{totalToday} hoje<br className="sm:hidden" /> <span className="hidden sm:inline">&middot;</span> +{weekTotal} esta semana
+            +{weekTotal} nos últimos 7 dias<br className="sm:hidden" /> <span className="hidden sm:inline">&middot;</span> {data.length} dias
           </p>
         )}
       </div>

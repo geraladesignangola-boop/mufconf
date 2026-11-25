@@ -91,7 +91,7 @@ export default function AdminDashboard({ stats, ranking }: AdminDashboardProps) 
       </div>
 
       {/* 2. Funil da campanha — fluxo horizontal, ganha com a largura total */}
-      <AdminFunnel stats={stats} />
+      <AdminFunnel stats={stats} todayRegistrations={todayRegistrations} />
 
       {/* 3. Tendência (largo) + alertas (coluna lateral) */}
       <div className="grid gap-4 lg:grid-cols-3">

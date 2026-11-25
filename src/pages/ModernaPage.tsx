@@ -20,6 +20,7 @@ import ModernaParcerias from '../components/moderna/ModernaParcerias';
 import ModernaGaleria from '../components/moderna/ModernaGaleria';
 import ModernaLogisticaInscricao from '../components/moderna/ModernaLogisticaInscricao';
 import ModernaMateriaisAtalhos from '../components/moderna/ModernaMateriaisAtalhos';
+import ModernaApoioParticipante from '../components/moderna/ModernaApoioParticipante';
 
 export default function ModernaPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -35,6 +36,7 @@ export default function ModernaPage() {
     'moderna-flyers',
     'moderna-parcerias',
     'moderna-logistica',
+    'apoio-participante',
     'moderna-materiais',
     'moderna-galeria',
   ]);
@@ -320,6 +322,7 @@ export default function ModernaPage() {
             mostrarInscricao={secoesVisiveis.inscricao !== false}
           />
         )}
+        <ModernaApoioParticipante />
         {secoesVisiveis.materiais !== false && <ModernaMateriaisAtalhos />}
         {secoesVisiveis.galeria !== false && <ModernaGaleria />}
       </main>
@@ -387,6 +390,13 @@ export default function ModernaPage() {
                 >
                   {camposFooter.fb_label || 'Facebook'}
                 </a>
+                <button
+                  type="button"
+                  onClick={() => scrollTo('apoio-participante')}
+                  className="text-left hover:text-[var(--wex-on-dark)] transition-colors cursor-pointer"
+                >
+                  Bilhete e ajuda
+                </button>
                 <Link to="/termos" className="hover:text-[var(--wex-on-dark)] transition-colors">
                   Termos & Privacidade
                 </Link>

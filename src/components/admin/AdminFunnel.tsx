@@ -4,6 +4,8 @@ import { DashboardStats } from '../../types/database'
 
 interface AdminFunnelProps {
   stats: DashboardStats | null
+  /** Inscrições registadas hoje (valor real, vindo de get_daily_registrations). */
+  todayRegistrations?: number
 }
 
 interface FunnelStage {
@@ -12,14 +14,14 @@ interface FunnelStage {
   delta?: string
 }
 
-export default function AdminFunnel({ stats }: AdminFunnelProps) {
+export default function AdminFunnel({ stats, todayRegistrations = 0 }: AdminFunnelProps) {
   const stages: FunnelStage[] = [
     { value: stats?.total_links || 0, label: 'Links gerados' },
     { value: stats?.total_clicks || 0, label: 'Cliques totais' },
     {
       value: stats?.total_inscritos || 0,
       label: 'Inscritas',
-      delta: stats?.total_inscritos ? `+${Math.min(stats.total_inscritos, 12)} hoje` : undefined,
+      delta: todayRegistrations > 0 ? `+${todayRegistrations} hoje` : undefined,
     },
     { value: stats?.total_referrals || 0, label: 'Referrals gerados' },
   ]

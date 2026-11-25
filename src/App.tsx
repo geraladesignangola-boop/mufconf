@@ -73,6 +73,7 @@ export default function App() {
               <Route path="/convite" element={<ConvitePage />} />
               <Route path="/admin" element={<AdminPanel />} />
               <Route path="/checkin" element={<CheckInPage />} />
+              <Route path="/bilhete" element={<Navigate to="/#apoio-participante" replace />} />
               <Route path="/termos" element={<TermosPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
